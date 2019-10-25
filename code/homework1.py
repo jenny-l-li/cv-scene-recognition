@@ -55,6 +55,11 @@ if __name__ == "__main__":
     buildDict_time = []
     bow_time = []
 
+    # vocabs built: 
+    # sift kmeans 20 50 
+    # surf kmeans 20 50 
+    # orb kmeans 20 50
+
     # #for feature in ['sift', 'surf', 'orb']:
     # for feature in ['sift']:
     #     for algo in ['kmeans']:
@@ -69,21 +74,31 @@ if __name__ == "__main__":
     #             np.save(SAVEPATH + filename, np.asarray(vocabulary))
     #             vocabularies.append(vocabulary) # A list of vocabularies (which are 2D arrays)
     #             vocab_idx.append(filename.split('.')[0]) # Save the map from index to vocabulary
+    
     print 'building...'
-    for feature in ['sift']:
-        for algo in ['hierarchical']:
+    for feature in ['surf']:
+        for algo in ['kmeans']:
             for dict_size in [20, 50]:
+                start = timeit.default_timer() 
                 vocabulary = buildDict(train_images, dict_size, feature, algo)
+                end = timeit.default_timer() 
+                t = round((end - start), 2)
                 filename = 'voc_' + feature + '_' + algo + '_' + str(dict_size) + '.npy'
                 np.save(SAVEPATH + filename, np.asarray(vocabulary))
+                filename2 = 'buildd_' + feature + '_' + algo + '_' + str(dict_size) + '.npy'
+                np.save(SAVEPATH + filename2, t)
                 print 'almost done'
     print 'build done'
+
     # get existing vocabs
-    for feature in ['sift']:
-        for algo in ['kmeans', 'hierarchical']:
+    for feature in ['sift', 'surf', 'orb']:
+        for algo in ['kmeans']:
             for dict_size in [20, 50]:
                 filename = 'voc_' + feature + '_' + algo + '_' + str(dict_size) + '.npy'
                 vocabularies.append(np.load(SAVEPATH + filename))
+                filename2 = 'buildd_' + feature + '_' + algo + '_' + str(dict_size) + '.npy'
+                if feature == 'orb' or feature == 'surf':
+                    print np.load(SAVEPATH + filename2)
 
 
     # print 'buildd time', buildDict_time
@@ -93,23 +108,58 @@ if __name__ == "__main__":
     features = ['sift'] * 4 + ['surf'] * 4 + ['orb'] * 4 # Order in which features were used 
     # for vocabulary generation
     # 12 vocabularies
+
+    # custom computebow 
+    # 0 1 2 3 | 4 5 6 7 | 8 9 10 11 
+    # k20 k50 h20 h50
+    start = timeit.default_timer() 
+    for image in train_images: # Compute the BOW representation of the training set
+        rep = computeBow(image, vocabularies[2], 'surf') # Rep is a list of descriptors for a given image
+        train_rep.append(rep)
+    np.save(SAVEPATH + 'bow_train_' + str(4) + '.npy', np.asarray(train_rep)) # Save the representations for vocabulary i
+    train_rep = [] # reset the list to save the following vocabulary
+    for image in test_images: # Compute the BOW representation of the testing set
+        rep = computeBow(image, vocabularies[2], 'surf')
+        test_rep.append(rep)
+    np.save(SAVEPATH + 'bow_test_' + str(4) + '.npy', np.asarray(test_rep)) # Save the representations for vocabulary i
+    test_rep = [] # reset the list to save the following vocabulary
+    end = timeit.default_timer() 
+    t = round((end - start), 2)
+    np.save(SAVEPATH + 'bowtime_' + str(4) + '.npy', t) 
+    bow_time.append(round((end - start), 2))
     
-    for i, vocab in enumerate(vocabularies):
-        if i < 2:  # sift kmeans 20 50
-            continue
-        start = timeit.default_timer() 
-        for image in train_images: # Compute the BOW representation of the training set
-            rep = computeBow(image, vocab, features[i]) # Rep is a list of descriptors for a given image
-            train_rep.append(rep)
-        np.save(SAVEPATH + 'bow_train_' + str(i) + '.npy', np.asarray(train_rep)) # Save the representations for vocabulary i
-        train_rep = [] # reset the list to save the following vocabulary
-        for image in test_images: # Compute the BOW representation of the testing set
-            rep = computeBow(image, vocab, features[i])
-            test_rep.append(rep)
-        np.save(SAVEPATH + 'bow_test_' + str(i) + '.npy', np.asarray(test_rep)) # Save the representations for vocabulary i
-        test_rep = [] # reset the list to save the following vocabulary
-        end = timeit.default_timer() 
-        bow_time.append(round((end - start), 2))
+    start = timeit.default_timer() 
+    for image in train_images: # Compute the BOW representation of the training set
+        rep = computeBow(image, vocabularies[3], 'surf') # Rep is a list of descriptors for a given image
+        train_rep.append(rep)
+    np.save(SAVEPATH + 'bow_train_' + str(5) + '.npy', np.asarray(train_rep)) # Save the representations for vocabulary i
+    train_rep = [] # reset the list to save the following vocabulary
+    for image in test_images: # Compute the BOW representation of the testing set
+        rep = computeBow(image, vocabularies[3], 'surf')
+        test_rep.append(rep)
+    np.save(SAVEPATH + 'bow_test_' + str(5) + '.npy', np.asarray(test_rep)) # Save the representations for vocabulary i
+    test_rep = [] # reset the list to save the following vocabulary
+    end = timeit.default_timer() 
+    t = round((end - start), 2)
+    np.save(SAVEPATH + 'bowtime_' + str(5) + '.npy', t) 
+    bow_time.append(round((end - start), 2))
+
+    # for i, vocab in enumerate(vocabularies):
+    #     if features[i] == 'sift' and i < 2:  # sift kmeans 20 50
+    #         continue
+    #     start = timeit.default_timer() 
+    #     for image in train_images: # Compute the BOW representation of the training set
+    #         rep = computeBow(image, vocab, features[i]) # Rep is a list of descriptors for a given image
+    #         train_rep.append(rep)
+    #     np.save(SAVEPATH + 'bow_train_' + str(i) + '.npy', np.asarray(train_rep)) # Save the representations for vocabulary i
+    #     train_rep = [] # reset the list to save the following vocabulary
+    #     for image in test_images: # Compute the BOW representation of the testing set
+    #         rep = computeBow(image, vocab, features[i])
+    #         test_rep.append(rep)
+    #     np.save(SAVEPATH + 'bow_test_' + str(i) + '.npy', np.asarray(test_rep)) # Save the representations for vocabulary i
+    #     test_rep = [] # reset the list to save the following vocabulary
+    #     end = timeit.default_timer() 
+    #     bow_time.append(round((end - start), 2))
         
     # print 'bow time', bow_time
 
@@ -120,9 +170,17 @@ if __name__ == "__main__":
     knn_runtimes = []
 
     for i, vocab in enumerate(vocabularies):
+        if i == 2:
+            i = 4
+        elif i == 3:
+            i = 5
+        elif i == 4:
+            i = 8
+        elif i == 5:
+            i = 9
         bow_train = np.load(SAVEPATH + 'bow_train_' + str(i) + '.npy')
         bow_test = np.load(SAVEPATH + 'bow_test_' + str(i) + '.npy')
-        print 'train', np.shape(bow_train), 'test', np.shape(bow_test), 'trainlab', len(train_labels), 'testlab', len(test_labels)
+        # print 'train', np.shape(bow_train), 'test', np.shape(bow_test), 'trainlab', len(train_labels), 'testlab', len(test_labels)
         start = timeit.default_timer() 
         predict = KNN_classifier(bow_train, train_labels, bow_test, 9); 
         end = timeit.default_timer() 
@@ -140,6 +198,14 @@ if __name__ == "__main__":
     svm_lambda = 10
 
     for i, vocab in enumerate(vocabularies):
+        if i == 2:
+            i = 4
+        elif i == 3:
+            i = 5
+        elif i == 4:
+            i = 8
+        elif i == 5:
+            i = 9
         bow_train = np.load(SAVEPATH + 'bow_train_' + str(i) + '.npy')
         bow_test = np.load(SAVEPATH + 'bow_test_' + str(i) + '.npy')
         start = timeit.default_timer()
@@ -158,6 +224,14 @@ if __name__ == "__main__":
     rbf_runtimes = []
     
     for i, vocab in enumerate(vocabularies):
+        if i == 2:
+            i = 4
+        elif i == 3:
+            i = 5 
+        elif i == 4:
+            i = 8
+        elif i == 5:
+            i = 9       
         bow_train = np.load(SAVEPATH + 'bow_train_' + str(i) + '.npy')
         bow_test = np.load(SAVEPATH + 'bow_test_' + str(i) + '.npy')
         start = timeit.default_timer()

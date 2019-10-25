@@ -245,17 +245,13 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
             kp, des = sift.detectAndCompute(img, None)
             for d in des:
                 descriptors.append(d) 
-
         descriptors = np.asarray(descriptors)
-        descriptors = cv2.normalize(descriptors, None)  # ???
         
         # KMeans
         if clustering_type == 'kmeans':
             # build the vocabulary: set of image features (words)
             kmeans = cluster.KMeans(n_clusters=dict_size).fit(descriptors)
-            print('Shape of descriptors is {}'.format(np.shape(descriptors)))
             vocabulary = kmeans.cluster_centers_
-            # print getClusterCenters(descriptors, kmeans.labels_)
 
         # Hierarchial Agglomerative 
         elif clustering_type == 'hierarchical':
@@ -272,10 +268,10 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
                 des_sample = des
             for d in des_sample:
                 descriptors.append(d) 
-            # print('sf Shape of des is {}'.format(np.shape(des_sample)))
+        descriptors = np.asarray(descriptors)
+
         if clustering_type == 'kmeans':
             kmeans = cluster.KMeans(n_clusters=dict_size).fit(descriptors)
-            print('Shape of descriptors is {}'.format(np.shape(descriptors)))
             vocabulary = kmeans.cluster_centers_
         elif clustering_type == 'hierarchical':
             hier = cluster.AgglomerativeClustering(n_clusters=dict_size).fit(descriptors)
@@ -289,12 +285,12 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
         for img in train_images:
             kp, des = orb.detectAndCompute(img, None)
             if des is None:
+                print 'no'
                 continue
             for d in des:
                 descriptors.append(d) 
             print('o Shape of des is {}'.format(np.shape(des)))
         descriptors = np.asarray(descriptors)
-        descriptors = cv2.normalize(descriptors, None)
         if clustering_type == 'kmeans':
             kmeans = cluster.KMeans(n_clusters=dict_size).fit(descriptors)
             vocabulary = kmeans.cluster_centers_
