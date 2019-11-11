@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+from helper import *
 import os
 import cv2
 import numpy as np
@@ -33,8 +34,7 @@ def load_data():
             test_images.append(image)
             test_labels.append(i)
     
-    # training size: 1500
-    # testing size: 2985
+    # training size: 1500, testing size: 2985
     return train_images, test_images, train_labels, test_labels
 
 
@@ -87,11 +87,6 @@ def SVM_classifier(train_features, train_labels, test_features, is_linear, svm_l
         clf = svm.LinearSVC(C=svm_lambda, multi_class='ovr')
         clf.fit(train_features, train_labels)
         predicted_categories = clf.predict(test_features)
-    # else:
-    #     clf = svm.SVC(C=svm_lambda, kernel='rbf', decision_function_shape='ovr', gamma='scale')  # gamma='scale'
-    #     clf.fit(train_features, train_labels)
-    #     predicted_categories = clf.predict(test_features)
-    #     print 'yit'
     else:
         # create list of 15 training label lists fifteen_train:
         # [[label0, none, none, label0...]
@@ -121,10 +116,8 @@ def SVM_classifier(train_features, train_labels, test_features, is_linear, svm_l
 
             # iterate through each of the 15 clfs
             for i, clf in enumerate(fifteen_svms):
-                # print 'test', test
                 pred_label = clf.predict(test.reshape(1, -1))
                 conf = abs(clf.decision_function(test.reshape(1, -1)))
-                # print 'pred', pred_label, 'i', i, 'conf', abs(conf), 'min_conf_none', min_conf_none
                 if pred_label == -1 and winner is None:
                     if conf < min_conf_none:
                         min_conf_none = conf
@@ -138,10 +131,8 @@ def SVM_classifier(train_features, train_labels, test_features, is_linear, svm_l
 
             if winner is not None:
                 predicted_categories.append(winner)  # label with max confidence
-                # print 'winner', winner
             else:
                 predicted_categories.append(winner_none)
-                # print 'winner none', winner_none
 
     return predicted_categories
 
@@ -164,7 +155,6 @@ def reportAccuracy(true_labels, predicted_labels):
 
     # accuracy is a scalar, defined in the spec (in %)
     size = len(true_labels)
-    # print size, len(predicted_labels)
     n_correct = 0
     for i in range(size):
         if true_labels[i] == predicted_labels[i]:
@@ -172,40 +162,6 @@ def reportAccuracy(true_labels, predicted_labels):
     accuracy = round((n_correct / float(size)) * 100, 2)
     return accuracy
 
-def getClusterCenters(descriptors, labels):
-    vocabulary = []
-    # map of label to 128D list of running total of descriptors (len dict_size x 128)
-    label2des = {} 
-    # map of label to number of descriptors for that label
-    label2count = {}
-    nrows = np.size(descriptors, 0)
-    ncols = np.size(descriptors, 1)  # 128, 64, 32
-    labels = labels.tolist()
-    # print type(labels)
-    for label in labels:
-        if not label in label2des:
-            # initialize to all 0, 128 columns
-            label2des[label] = [0] * ncols
-            label2count[label] = 0
-    # print('map size {} des size {}'.format(len(label2des), nrows))
-    # print('check descriptor and label len are same {} {}'.format(len(labels), nrows))
-
-    # print 'ye', type(descriptors)
-    for i, des in enumerate(descriptors):  # for each descriptor row 
-        curr_label = labels[i]
-        label2count[curr_label] = label2count[curr_label] + 1
-        for j, d in enumerate(des):  # for each of the 128 col 
-            label2des[curr_label][j] = label2des[curr_label][j] + d.item()
-
-    #checkCount = 0
-    for i in range(len(label2des)):
-        label = label2des[i]
-        #checkCount = checkCount + label2count[i]
-        for j in range(len(label)):
-            label[j] = label[j] / label2count[i]
-        vocabulary.append(label)
-    # print 'checkCount', checkCount
-    return vocabulary
 
 def buildDict(train_images, dict_size, feature_type, clustering_type):
     # this function will sample descriptors from the training images,
@@ -228,14 +184,13 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
     limit_features = False
     if clustering_type == 'hierarchical':
         limit_features = True
-    N_FEATURES = 25
+    N_FEATURES = 20
 
     if feature_type == 'sift':
         if limit_features:
             sift = cv2.xfeatures2d.SIFT_create(nfeatures=N_FEATURES)
         else: 
             sift = cv2.xfeatures2d.SIFT_create()
-            print 'limit'
 
         # find keypoints and descriptors with SIFT for each image
         for img in train_images:
@@ -263,7 +218,8 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
         for img in train_images:
             kp, des = surf.detectAndCompute(img, None)
             if limit_features:
-                des_sample = random.sample(des, N_FEATURES)
+                des_sample = random.sample(des.tolist(), N_FEATURES)
+                des_sample = np.asarray(des_sample)
             else:
                 des_sample = des
             for d in des_sample:
@@ -285,11 +241,9 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
         for img in train_images:
             kp, des = orb.detectAndCompute(img, None)
             if des is None:
-                print 'no'
                 continue
             for d in des:
                 descriptors.append(d) 
-            print('o Shape of des is {}'.format(np.shape(des)))
         descriptors = np.asarray(descriptors)
         if clustering_type == 'kmeans':
             kmeans = cluster.KMeans(n_clusters=dict_size).fit(descriptors)
@@ -298,7 +252,7 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
             hier = cluster.AgglomerativeClustering(n_clusters=dict_size).fit(descriptors)
             vocabulary = getClusterCenters(descriptors, hier.labels_)
 
-    print vocabulary
+    # print vocabulary
     return vocabulary
 
 
@@ -318,7 +272,6 @@ def computeBow(image, vocabulary, feature_type):
     # ncols = descriptor_dimension[feature_type]  
 
     dict_size = len(vocabulary)  # dict_size x 128
-    # N_FEATURES = 25
 
     # extract features from image
     features = []
@@ -327,7 +280,6 @@ def computeBow(image, vocabulary, feature_type):
         kp, descriptors = sift.detectAndCompute(image, None)
         for des in descriptors:
             features.append(des)  #128
-        # print('BOW Shape of descriptors is {}'.format(np.shape(descriptors)))  # 25 x 128
     elif feature_type == 'surf':
         surf = cv2.xfeatures2d.SURF_create()
         kp, des = surf.detectAndCompute(image, None)
@@ -344,26 +296,22 @@ def computeBow(image, vocabulary, feature_type):
 
     bow = [0] * dict_size  # create bins
     TOTAL_FEATURES = len(features)
-    # print 'tot features', TOTAL_FEATURES
 
     # find out what bin each feature goes in
     # cdist: compute Euclidean distance to each centroid of the vocabulary to find the bin
     for feature in features:  # feature: 1 x 128
         feature = np.reshape(feature, (1, -1))  # feature (1D) = [ feature ] (2D)
         res = distance.cdist(vocabulary, feature, 'euclidean')  # dict_size x 1
-        # print 'cdist', res
         # bin index: min of distances 
         bin_index = np.where(res == np.amin(res))[0][0]
-        # print 'bin_index', bin_index
         bow[bin_index] = bow[bin_index] + 1
-    # print 'bow before norm', bow
 
     # normalize: each bin = values in each bin / total # of values
     for i, b1n in enumerate(bow):
         bow[i] = bow[i] / float(TOTAL_FEATURES)
 
-    # print 'bow', bow
     return bow
+
 
 def tinyImages_helper(train_features, test_features, train_labels, test_labels, train, test, scale, classResult):
     start = timeit.default_timer() 
@@ -428,6 +376,6 @@ def tinyImages(train_features, test_features, train_labels, test_labels):
             train_features, test_features, train_labels, test_labels, train, test, 16, classResult)
     classResult = tinyImages_helper(
             train_features, test_features, train_labels, test_labels, train, test, 32, classResult)
-    print classResult
+    # print classResult
     return classResult
     
